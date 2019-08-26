@@ -21,7 +21,7 @@ resource "aws_security_group" "rds" {
     from_port   = "${var.port}"
     to_port     = "${var.port}"
     protocol    = "tcp"
-    cidr_blocks = ["${var.ingress_cidr_blocks}"]
+    cidr_blocks = "${var.ingress_cidr_blocks}"
   }
 
   lifecycle {
@@ -33,7 +33,8 @@ resource "aws_security_group" "rds" {
 }
 
 resource "aws_rds_cluster" "db" {
-  engine = "${var.engine}"
+  engine         = "${var.engine}"
+  engine_version = "${var.engine_version}"
 
   cluster_identifier                  = "${local.name}"
   database_name                       = "${var.database_name}"
@@ -59,7 +60,8 @@ resource "aws_rds_cluster" "db" {
 }
 
 resource "aws_rds_cluster_instance" "db" {
-  engine = "${var.engine}"
+  engine         = "${var.engine}"
+  engine_version = "${var.engine_version}"
 
   count                   = "${var.instance_count}"
   identifier              = "${local.name}-${count.index}"
@@ -81,7 +83,14 @@ resource "aws_rds_cluster_parameter_group" "db" {
   family      = "${var.engine}${var.engine_version}"
   description = "RDS default cluster parameter group"
 
-  parameter = ["${var.rds_cluster_parameters}"]
+  dynamic "parameter" {
+    for_each = var.rds_cluster_parameters
+    content {
+      name         = parameter.value.name
+      value        = parameter.value.value
+      apply_method = parameter.value.apply_method
+    }
+  }
 
   lifecycle {
     ignore_changes = ["family"]
@@ -94,7 +103,14 @@ resource "aws_db_parameter_group" "db" {
   name   = "${local.name}"
   family = "${var.engine}${var.engine_version}"
 
-  parameter = ["${var.db_parameters}"]
+  dynamic "parameter" {
+    for_each = var.db_parameters
+    content {
+      name         = parameter.value.name
+      value        = parameter.value.value
+      apply_method = parameter.value.apply_method
+    }
+  }
 
   lifecycle {
     ignore_changes = ["family"]
